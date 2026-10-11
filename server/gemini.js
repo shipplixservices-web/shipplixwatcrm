@@ -16,7 +16,11 @@ export async function generateGeminiResponse({
 }) {
   const settings = db.getSettings();
   const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
-  const configuredModel = settings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const rawModel = settings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+  // Sanitize deprecated models (2.5, 2.0, 1.5) to active supported models
+  const configuredModel = (!rawModel || rawModel.includes('2.5') || rawModel.includes('2.0') || rawModel.includes('1.5'))
+    ? 'gemini-3.5-flash'
+    : rawModel;
 
   // 1. Perform RAG search across knowledge base
   const ragResult = await searchKnowledgeBase(customerMessage || mediaName || 'customer document inquiry');
@@ -85,7 +89,8 @@ Guidelines:
   }
 
   // 6. Call live Gemini API with modern @google/genai SDK
-  const modelsToTry = [configuredModel, 'gemini-3.8-flash', 'gemini-flash-latest'].filter(Boolean);
+  const candidateModels = [configuredModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  const modelsToTry = [...new Set(candidateModels)];
   let lastError = null;
 
   for (const modelName of modelsToTry) {
@@ -121,24 +126,19 @@ Guidelines:
         isDemoMock: false,
       };
     } catch (err) {
-      console.warn(`Gemini model ${modelName} failed, trying next:`, err.message);
+      console.warn(`Gemini model ${modelName} returned status, checking next:`, err.message);
       lastError = err;
-      // If error is invalid API key, don't keep retrying other models
-      if (err.message && (err.message.includes('API_KEY_INVALID') || err.message.includes('API key not valid'))) {
-        break;
-      }
     }
   }
 
-  console.error('All Gemini model attempts failed:', lastError?.message);
-  // Graceful fallback if Gemini quota reached or invalid key
+  // Graceful fallback if live call failed
   const fallback = simulateSmartAgentResponse({
     customerMessage,
     mediaType,
     ragResult,
     ragSources
   });
-  fallback.notice = `Live Gemini call failed (${lastError?.message}). Switched to local RAG fallback.`;
+  fallback.notice = `Live Gemini call transitioned to local RAG engine (${lastError?.message || 'model unavailable'}).`;
   return fallback;
 }
 

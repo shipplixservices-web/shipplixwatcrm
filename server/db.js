@@ -10,12 +10,20 @@ const DATA_DIR = path.resolve(__dirname, '../data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
 
-// Ensure data and uploads directory exist
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure data and uploads directory exist safely (handles read-only filesystems on Vercel)
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch {
+  // Read-only filesystem in serverless runtime
 }
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch {
+  // Read-only filesystem in serverless runtime
 }
 
 // Initial seed data for pre-populating rich conversations & knowledge base
@@ -28,7 +36,7 @@ If you do not have enough information to answer definitively, politely offer to 
 const INITIAL_DATA = {
   settings: {
     geminiApiKey: process.env.GEMINI_API_KEY || '',
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     defaultMode: process.env.DEFAULT_MODE || 'ai',
     globalAutoPilot: true,
@@ -262,29 +270,52 @@ class Database {
 
   load() {
     try {
+      const tmpFile = '/tmp/db.json';
+      if (fs.existsSync(tmpFile)) {
+        const raw = fs.readFileSync(tmpFile, 'utf-8');
+        return JSON.parse(raw);
+      }
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         return JSON.parse(raw);
       }
     } catch (err) {
-      console.error('Error loading db.json, resetting to initial data:', err.message);
+      console.warn('Error reading db.json, falling back to memory state:', err.message);
     }
-    this.save(INITIAL_DATA);
     return INITIAL_DATA;
   }
 
   save(data = this.data) {
+    this.data = data;
     try {
-      this.data = data;
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('Error saving db.json:', err.message);
+    } catch {
+      // In serverless / read-only environment like Vercel, try /tmp
+      try {
+        const tmpFile = '/tmp/db.json';
+        fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8');
+      } catch {
+        // Fallback to in-memory state
+      }
     }
   }
 
-  // Settings
+  // Settings: merge runtime process.env with stored settings
   getSettings() {
-    return this.data.settings;
+    const s = this.data.settings || {};
+    return {
+      ...s,
+      geminiApiKey: process.env.GEMINI_API_KEY || s.geminiApiKey || '',
+      geminiModel: process.env.GEMINI_MODEL || s.geminiModel || 'gemini-3.5-flash',
+      whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || s.whatsappPhoneNumberId || '',
+      whatsappWabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || s.whatsappWabaId || '',
+      whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN || s.whatsappAccessToken || '',
+      whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN || s.whatsappVerifyToken || 'shipplix_agent_webhook_verify_2026',
+      metaAppSecret: process.env.META_APP_SECRET || s.metaAppSecret || '',
+      supabaseUrl: process.env.SUPABASE_URL || s.supabaseUrl || '',
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || s.supabaseAnonKey || '',
+      supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || s.supabaseServiceKey || ''
+    };
   }
 
   updateSettings(partial) {
@@ -305,23 +336,52 @@ class Database {
   findOrCreateChat(phoneNumber, name = 'WhatsApp User') {
     let chat = this.data.chats.find(c => c.phoneNumber === phoneNumber);
     if (!chat) {
-      const mode = this.data.settings.defaultMode || 'ai';
-      chat = {
-        id: 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-        phoneNumber,
-        name: name || phoneNumber,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(phoneNumber)}`,
-        mode,
-        lastMessage: '',
-        lastMessageAt: new Date().toISOString(),
-        unreadCount: 0,
-        tags: ['New Contact'],
-        createdAt: new Date().toISOString()
-      };
-      this.data.chats.unshift(chat);
-      this.save();
+      return this.createContact({ phoneNumber, name });
     }
     return chat;
+  }
+
+  createContact({ phoneNumber, name, mode = 'ai', tags = ['New Contact'] }) {
+    const settings = this.getSettings();
+    const defaultMode = settings.defaultMode || 'ai';
+    const newChat = {
+      id: 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      phoneNumber,
+      name: name || phoneNumber,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(phoneNumber)}`,
+      mode: mode || defaultMode,
+      lastMessage: '',
+      lastMessageAt: new Date().toISOString(),
+      unreadCount: 0,
+      tags: Array.isArray(tags) && tags.length > 0 ? tags : ['New Contact'],
+      createdAt: new Date().toISOString()
+    };
+    this.data.chats.unshift(newChat);
+    this.save();
+
+    // Sync to Supabase if connected
+    try {
+      const supabase = this.getSupabaseClient();
+      if (supabase) {
+        supabase.from('whatsapp_chats').insert([{
+          id: newChat.id,
+          phone_number: newChat.phoneNumber,
+          name: newChat.name,
+          avatar: newChat.avatar,
+          mode: newChat.mode,
+          last_message: newChat.lastMessage,
+          unread_count: 0,
+          tags: newChat.tags,
+          created_at: newChat.createdAt
+        }]).then(({ error }) => {
+          if (error) console.warn('Supabase chat sync notice:', error.message);
+        }).catch(e => console.warn('Supabase chat sync error:', e.message));
+      }
+    } catch (e) {
+      console.warn('Supabase chat sync init error:', e.message);
+    }
+
+    return newChat;
   }
 
   updateChatMode(chatId, mode) {
@@ -422,7 +482,8 @@ class Database {
 
   // Supabase Client helper
   getSupabaseClient() {
-    const { supabaseUrl, supabaseAnonKey, supabaseServiceKey } = this.data.settings;
+    const settings = this.getSettings();
+    const { supabaseUrl, supabaseAnonKey, supabaseServiceKey } = settings;
     const key = supabaseServiceKey || supabaseAnonKey;
     if (supabaseUrl && key) {
       try {

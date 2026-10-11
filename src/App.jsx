@@ -6,6 +6,7 @@ import ContextSidebar from './components/ContextSidebar.jsx';
 import KnowledgeBaseModal from './components/KnowledgeBaseModal.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import WhatsAppSimulatorDrawer from './components/WhatsAppSimulatorDrawer.jsx';
+import AddContactModal from './components/AddContactModal.jsx';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -15,7 +16,7 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [settings, setSettings] = useState({
     geminiApiKey: '',
-    geminiModel: 'gemini-2.5-flash',
+    geminiModel: 'gemini-3.5-flash',
     systemPrompt: '',
     defaultMode: 'ai',
     globalAutoPilot: true,
@@ -32,6 +33,7 @@ export default function App() {
   const [isKBOpen, setIsKBOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(true); // Open simulator by default so user can test immediately!
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
 
   // Copilot reply suggestion
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -132,10 +134,12 @@ export default function App() {
           fetch('/api/simulator/logs')
             .then(r => r.json())
             .then(d => { if (d.success) setWebhookLogs(d.logs); });
-        } else if (type === 'chat_updated') {
-          setChats((prev) =>
-            prev.map(c => c.id === data.id ? { ...c, ...data } : c)
-          );
+        } else if (type === 'new_chat' || type === 'chat_updated') {
+          setChats((prev) => {
+            const exists = prev.some(c => c.id === data.id);
+            if (exists) return prev.map(c => c.id === data.id ? { ...c, ...data } : c);
+            return [data, ...prev];
+          });
         } else if (type === 'chat_mode_changed') {
           setChats((prev) =>
             prev.map(c => c.id === data.chatId ? { ...c, mode: data.mode } : c)
@@ -315,6 +319,38 @@ export default function App() {
     });
   };
 
+  // Create / Add New Contact
+  const handleAddContact = async (contactData) => {
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactData)
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.chat) {
+        setChats(prev => {
+          const exists = prev.some(c => c.id === data.chat.id);
+          if (exists) return prev.map(c => c.id === data.chat.id ? data.chat : c);
+          return [data.chat, ...prev];
+        });
+        setSelectedChatId(data.chat.id);
+        if (data.initialMessage) {
+          setMessages([data.initialMessage]);
+        }
+        return { success: true, chat: data.chat };
+      }
+      return {
+        success: false,
+        error: data.error || 'Failed to add contact',
+        chat: data.chat
+      };
+    } catch (err) {
+      console.error('Failed to add contact:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const activeChat = chats.find(c => c.id === selectedChatId) || chats[0];
 
   // Calculated Stats
@@ -337,6 +373,7 @@ export default function App() {
         onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenKB={() => setIsKBOpen(true)}
+        onOpenAddContact={() => setIsAddContactOpen(true)}
         onToggleSimulator={() => setIsSimulatorOpen(!isSimulatorOpen)}
         isSimulatorOpen={isSimulatorOpen}
       />
@@ -349,6 +386,7 @@ export default function App() {
           selectedChatId={activeChat?.id}
           onSelectChat={handleSelectChat}
           onQuickSimulateNewChat={handleQuickSimulateNewChat}
+          onOpenAddContact={() => setIsAddContactOpen(true)}
         />
 
         {/* Center Column: WhatsApp Chat Viewport */}
@@ -361,6 +399,8 @@ export default function App() {
           aiSuggestion={aiSuggestion}
           isLoadingSuggestion={isLoadingSuggestion}
           isSending={isSending}
+          onOpenAddContact={() => setIsAddContactOpen(true)}
+          onQuickSimulateNewChat={handleQuickSimulateNewChat}
         />
 
         {/* Right Column: Customer Details & RAG Context */}
@@ -386,6 +426,14 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+      />
+
+      {/* Add New Contact Modal */}
+      <AddContactModal
+        isOpen={isAddContactOpen}
+        onClose={() => setIsAddContactOpen(false)}
+        onAddContact={handleAddContact}
+        onSelectChat={handleSelectChat}
       />
 
       {/* Interactive WhatsApp Mobile Phone Simulator */}

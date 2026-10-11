@@ -21,12 +21,15 @@ function verifyMetaSignature(rawBody, signatureHeader) {
     console.warn('[Webhook] Missing X-Hub-Signature-256 header — rejecting request.');
     return false;
   }
+
   const expected = 'sha256=' + crypto
     .createHmac('sha256', appSecret)
     .update(rawBody)
     .digest('hex');
+
   // Constant-time comparison to prevent timing attacks
   try {
+    if (expected.length !== signatureHeader.length) return false;
     return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signatureHeader));
   } catch {
     return false;
@@ -34,49 +37,57 @@ function verifyMetaSignature(rawBody, signatureHeader) {
 }
 
 /**
- * GET /api/webhook
- * Meta WhatsApp Cloud API verification handshake
+ * Handle Meta Webhook Verification (GET /api/webhook)
  */
-router.get('/', (req, res) => {
+function handleWebhookVerification(req, res) {
   const result = verifyWebhookRequest(req);
   if (result.verified) {
-    return res.status(200).send(result.challenge);
+    // Return exact challenge string as plain text HTTP 200 (no quotes, no JSON wrapper)
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(200).send(String(result.challenge));
   }
-  return res.status(403).send('Verification failed');
-});
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  return res.status(403).send(result.reason || 'Verification failed');
+}
+
+router.get('/', handleWebhookVerification);
+router.get('', handleWebhookVerification);
 
 /**
- * POST /api/webhook
- * Incoming messages and status events from Meta WhatsApp Cloud API
+ * Handle Meta Webhook Events (POST /api/webhook)
  */
-router.post('/', async (req, res) => {
-  // Verify Meta payload signature (X-Hub-Signature-256)
-  const rawBody = JSON.stringify(req.body);
+async function handleWebhookEvent(req, res) {
+  // 1. Verify Meta payload signature (X-Hub-Signature-256)
+  const rawBody = req.rawBody ? req.rawBody : Buffer.from(JSON.stringify(req.body));
   const signature = req.headers['x-hub-signature-256'];
   if (!verifyMetaSignature(rawBody, signature)) {
     db.addWebhookLog({
       direction: 'inbound',
       event: 'signature_verification_failed',
       type: 'security',
-      details: 'Invalid X-Hub-Signature-256 — request rejected.'
+      details: 'Invalid X-Hub-Signature-256 HMAC signature.'
     });
     return res.status(401).json({ error: 'Invalid webhook signature' });
   }
 
+  // 2. Validate payload structure
   const body = req.body;
+  if (!body || typeof body !== 'object') {
+    return res.status(400).json({ error: 'Invalid webhook payload structure' });
+  }
 
   // Immediate 200 OK response required by Meta
   res.status(200).json({ status: 'received' });
 
-  // Process payload asynchronously
+  // 3. Process payload asynchronously
   try {
     const entry = body?.entry?.[0];
     const change = entry?.changes?.[0]?.value;
 
     if (!change) return;
 
-    // 1. Handle Message Status updates (sent, delivered, read)
-    if (change.statuses && change.statuses.length > 0) {
+    // Handle Message Status updates (sent, delivered, read)
+    if (Array.isArray(change.statuses)) {
       for (const statusObj of change.statuses) {
         db.addWebhookLog({
           direction: 'inbound',
@@ -87,13 +98,24 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 2. Handle Incoming Messages
-    if (change.messages && change.messages.length > 0) {
+    // Handle Incoming Messages
+    if (Array.isArray(change.messages)) {
       const contact = change.contacts?.[0];
       const customerName = contact?.profile?.name || 'WhatsApp Contact';
 
       for (const msg of change.messages) {
-        const senderPhone = '+' + msg.from;
+        if (!msg || !msg.from) continue;
+
+        // Deduplication: prevent processing duplicate message retries from Meta
+        if (msg.id) {
+          const isDuplicate = db.data.messages.some(m => m.metaMessageId === msg.id);
+          if (isDuplicate) {
+            console.log(`[Webhook] Duplicate message ${msg.id} ignored.`);
+            continue;
+          }
+        }
+
+        const senderPhone = msg.from.startsWith('+') ? msg.from : '+' + msg.from;
         const chat = db.findOrCreateChat(senderPhone, customerName);
 
         let msgType = msg.type || 'text';
@@ -149,18 +171,17 @@ router.post('/', async (req, res) => {
           event: 'message_received',
           sender: senderPhone,
           type: msgType,
-          details: `"${content}" from ${customerName}`
+          details: `"${content.slice(0, 80)}"`
         });
 
         broadcastEvent('new_message', savedCustomerMsg);
         broadcastEvent('chat_updated', db.getChat(chat.id));
 
-        // 3. AI Mode or Human Mode Decision
+        // Decision: AI Mode vs Human Mode
         const settings = db.getSettings();
         const isAiMode = chat.mode === 'ai' && settings.globalAutoPilot !== false;
 
         if (isAiMode) {
-          // Trigger automatic AI reply via Gemini 2.5 Flash + RAG
           const aiResponse = await generateGeminiResponse({
             chatId: chat.id,
             customerMessage: content,
@@ -170,14 +191,12 @@ router.post('/', async (req, res) => {
             mediaName
           });
 
-          // Send outbound message back to customer via Meta Cloud API
           const sendResult = await sendMetaWhatsAppMessage({
             to: senderPhone,
             type: 'text',
             text: aiResponse.text
           });
 
-          // Save AI response to DB
           const savedAiMsg = db.addMessage({
             chatId: chat.id,
             from: 'ai',
@@ -194,7 +213,6 @@ router.post('/', async (req, res) => {
           broadcastEvent('new_message', savedAiMsg);
           broadcastEvent('chat_updated', db.getChat(chat.id));
         } else {
-          // In Human mode, notify that an agent is needed
           broadcastEvent('human_takeover_pending', {
             chatId: chat.id,
             customerName,
@@ -204,13 +222,16 @@ router.post('/', async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('Error handling webhook payload:', err);
+    console.error('Error handling webhook payload:', err.message);
     db.addWebhookLog({
       direction: 'inbound',
       event: 'error',
       details: err.message
     });
   }
-});
+}
+
+router.post('/', handleWebhookEvent);
+router.post('', handleWebhookEvent);
 
 export default router;

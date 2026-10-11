@@ -12,7 +12,8 @@ import {
   Database,
   ExternalLink,
   ShieldAlert,
-  Download
+  Download,
+  UserPlus
 } from 'lucide-react';
 
 export default function ChatViewport({
@@ -24,6 +25,8 @@ export default function ChatViewport({
   aiSuggestion,
   isLoadingSuggestion,
   isSending,
+  onOpenAddContact,
+  onQuickSimulateNewChat
 }) {
   const [inputText, setInputText] = useState('');
   const [attachmentType, setAttachmentType] = useState('none'); // 'none' | 'image' | 'document'
@@ -81,9 +84,34 @@ export default function ChatViewport({
   if (!chat) {
     return (
       <main className="main-chat-viewport" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Bot size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
-          <h3>Select a conversation to start</h3>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', maxWidth: 420, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
+            <Bot size={32} style={{ color: 'var(--wa-primary)' }} />
+          </div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>No conversation selected</h3>
+          <p style={{ fontSize: '13px', lineHeight: 1.5 }}>
+            Choose an existing customer from the left sidebar, add a new WhatsApp contact, or simulate an inbound customer message.
+          </p>
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <button
+              id="empty-state-add-contact-btn"
+              className="btn-action-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px' }}
+              onClick={onOpenAddContact}
+            >
+              <UserPlus size={15} />
+              <span>Add New Contact</span>
+            </button>
+            <button
+              id="empty-state-simulate-btn"
+              className="btn-action-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px' }}
+              onClick={onQuickSimulateNewChat}
+            >
+              <Sparkles size={15} color="#a78bfa" />
+              <span>Simulate Chat</span>
+            </button>
+          </div>
         </div>
       </main>
     );

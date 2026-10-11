@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, User, Settings, Database, Smartphone, Sun, Moon, Zap, ShieldCheck } from 'lucide-react';
+import { Bot, User, Settings, Database, Smartphone, Sun, Moon, Zap, ShieldCheck, UserPlus } from 'lucide-react';
 
 export default function TopNavbar({
   globalAutoPilot,
@@ -9,6 +9,7 @@ export default function TopNavbar({
   onToggleTheme,
   onOpenSettings,
   onOpenKB,
+  onOpenAddContact,
   onToggleSimulator,
   isSimulatorOpen,
 }) {
@@ -25,7 +26,7 @@ export default function TopNavbar({
             <span className="saas-badge">Enterprise Pro</span>
           </div>
           <div className="brand-subtitle">
-            Powered by Google Gemini 2.5 Flash & Meta Cloud API
+            Powered by Google Gemini & Meta Cloud API
           </div>
         </div>
       </div>
@@ -75,6 +76,18 @@ export default function TopNavbar({
               <span>Manual Admin Mode</span>
             </>
           )}
+        </button>
+
+        {/* Add Contact Button */}
+        <button
+          id="btn-navbar-add-contact"
+          className="btn-action-primary"
+          onClick={onOpenAddContact}
+          title="Add a new WhatsApp contact"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#00a884' }}
+        >
+          <UserPlus size={15} />
+          <span>+ Add Contact</span>
         </button>
 
         {/* Knowledge Base Modal Button */}

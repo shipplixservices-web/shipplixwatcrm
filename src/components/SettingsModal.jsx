@@ -46,6 +46,22 @@ export default function SettingsModal({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const parseApiResponse = async (res) => {
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        return await res.json();
+      } catch (e) {
+        return { success: false, error: `Invalid JSON response: ${e.message}` };
+      }
+    }
+    const text = await res.text();
+    return {
+      success: false,
+      error: `Server returned non-JSON (${res.status} ${res.statusText}): ${text.slice(0, 150)}`
+    };
+  };
+
   // Test Gemini
   const handleTestGemini = async () => {
     setIsTestingGemini(true);
@@ -59,7 +75,7 @@ export default function SettingsModal({
           model: formData.geminiModel,
         }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       setGeminiTestStatus(data);
     } catch (e) {
       setGeminiTestStatus({ success: false, error: e.message });
@@ -81,7 +97,7 @@ export default function SettingsModal({
           accessToken: formData.whatsappAccessToken,
         }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       setWaTestStatus(data);
     } catch (e) {
       setWaTestStatus({ success: false, error: e.message });
@@ -103,7 +119,7 @@ export default function SettingsModal({
           key: formData.supabaseServiceKey || formData.supabaseAnonKey,
         }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       setSupabaseTestStatus(data);
     } catch (e) {
       setSupabaseTestStatus({ success: false, error: e.message });
@@ -154,7 +170,7 @@ export default function SettingsModal({
             onClick={() => setActiveTab('ai')}
           >
             <Cpu size={14} style={{ marginRight: 6 }} />
-            AI & Gemini 2.5 Flash
+            AI & Gemini
           </button>
           <button
             id="tab-settings-whatsapp"
@@ -214,12 +230,12 @@ export default function SettingsModal({
                 <select
                   id="settings-gemini-model"
                   className="form-input-text"
-                  value={formData.geminiModel || 'gemini-2.5-flash'}
+                  value={formData.geminiModel || 'gemini-3.5-flash'}
                   onChange={(e) => setFormData({ ...formData, geminiModel: e.target.value })}
                 >
-                  <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Recommended - Fastest & Smartest)</option>
-                  <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (High Context)</option>
-                  <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Experimental)</option>
+                  <option value="gemini-3.5-flash">Google Gemini 3.5 Flash (Recommended - Ultra Fast & Accurate)</option>
+                  <option value="gemini-3.5-flash-lite">Google Gemini 3.5 Flash Lite (Low Latency)</option>
+                  <option value="gemini-3.8-flash">Google Gemini 3.8 Flash</option>
                 </select>
               </div>
 

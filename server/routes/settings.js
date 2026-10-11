@@ -81,7 +81,10 @@ router.post('/', (req, res) => {
 router.post('/test-gemini', async (req, res) => {
   const { apiKey, model } = req.body;
   const targetKey = apiKey || db.getSettings().geminiApiKey || process.env.GEMINI_API_KEY;
-  const targetModel = model || db.getSettings().geminiModel || 'gemini-2.5-flash';
+  const rawModel = model || db.getSettings().geminiModel || 'gemini-3.5-flash';
+  const targetModel = (!rawModel || rawModel.includes('2.5') || rawModel.includes('2.0') || rawModel.includes('1.5'))
+    ? 'gemini-3.5-flash'
+    : rawModel;
 
   if (!targetKey) {
     return res.status(400).json({ success: false, error: 'No Gemini API key provided' });
@@ -125,8 +128,9 @@ router.post('/test-gemini', async (req, res) => {
  */
 router.post('/test-whatsapp', async (req, res) => {
   const { phoneNumberId, accessToken } = req.body;
-  const targetPhoneId = phoneNumberId || db.getSettings().whatsappPhoneNumberId;
-  const targetToken = accessToken || db.getSettings().whatsappAccessToken;
+  const settings = db.getSettings();
+  const targetPhoneId = phoneNumberId || settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const targetToken = accessToken || settings.whatsappAccessToken || process.env.WHATSAPP_ACCESS_TOKEN;
 
   if (!targetPhoneId || !targetToken) {
     return res.status(400).json({ success: false, error: 'Phone Number ID and Access Token are required.' });
@@ -137,12 +141,22 @@ router.post('/test-whatsapp', async (req, res) => {
       headers: { Authorization: `Bearer ${targetToken}` }
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      return res.status(response.status).json({
+        success: false,
+        error: `Meta Graph API returned non-JSON response (${response.status}): ${text.slice(0, 150)}`
+      });
+    }
 
     if (!response.ok) {
       return res.status(400).json({
         success: false,
-        error: data.error?.message || 'Meta validation failed.'
+        error: data.error?.message || `Meta validation failed with status ${response.status}.`
       });
     }
 
@@ -151,7 +165,7 @@ router.post('/test-whatsapp', async (req, res) => {
       message: 'Meta WhatsApp Business credentials verified!',
       details: {
         verifiedName: data.verified_name || 'Configured WABA Phone',
-        displayPhoneNumber: data.display_phone_number,
+        displayPhoneNumber: data.display_phone_number || 'N/A',
         qualityRating: data.quality_rating || 'GREEN'
       }
     });

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Bot, User, PlusCircle, CheckCheck } from 'lucide-react';
+import { Search, Bot, User, UserPlus, Sparkles } from 'lucide-react';
 
 export default function ChatSidebar({
   chats,
   selectedChatId,
   onSelectChat,
-  onQuickSimulateNewChat
+  onQuickSimulateNewChat,
+  onOpenAddContact
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'ai' | 'human' | 'unread'
@@ -40,17 +41,36 @@ export default function ChatSidebar({
     <aside className="sidebar-chat-list" id="crm-chat-sidebar">
       {/* Header with Search and Filters */}
       <div className="sidebar-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <h1 style={{ fontSize: '15px', fontWeight: 700 }}>WhatsApp Messages</h1>
-          <button
-            id="btn-simulate-new-chat"
-            className="btn-icon"
-            style={{ width: '28px', height: '28px' }}
-            title="Simulate a new incoming WhatsApp customer"
-            onClick={onQuickSimulateNewChat}
-          >
-            <PlusCircle size={15} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              id="btn-add-contact-sidebar"
+              className="btn-action-primary"
+              style={{
+                padding: '5px 10px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                borderRadius: 'var(--radius-sm)'
+              }}
+              title="Add a new contact and start conversation"
+              onClick={onOpenAddContact}
+            >
+              <UserPlus size={13} />
+              <span>Add Contact</span>
+            </button>
+            <button
+              id="btn-simulate-new-chat"
+              className="btn-icon"
+              style={{ width: '28px', height: '28px' }}
+              title="Quick simulate a random incoming customer"
+              onClick={onQuickSimulateNewChat}
+            >
+              <Sparkles size={14} color="#a78bfa" />
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -79,7 +99,7 @@ export default function ChatSidebar({
             className={`filter-pill ${activeFilter === 'ai' ? 'active' : ''}`}
             onClick={() => setActiveFilter('ai')}
           >
-            🤖 AI Mode ({chats.filter(c => c.mode === 'ai').length})
+            🤖 AI ({chats.filter(c => c.mode === 'ai').length})
           </button>
           <button
             id="filter-human-btn"
@@ -101,8 +121,16 @@ export default function ChatSidebar({
       {/* Scrollable Conversation List */}
       <div className="chats-scrollable-container" id="chats-list-container">
         {filteredChats.length === 0 ? (
-          <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-            No conversations match your filter.
+          <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div>No conversations found.</div>
+            <button
+              className="btn-action-primary"
+              style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={onOpenAddContact}
+            >
+              <UserPlus size={13} />
+              <span>Add New Contact</span>
+            </button>
           </div>
         ) : (
           filteredChats.map((chat) => {

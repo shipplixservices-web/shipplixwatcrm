@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { db } from './db.js';
 
 const META_GRAPH_VERSION = 'v21.0';
@@ -6,30 +7,66 @@ const META_GRAPH_VERSION = 'v21.0';
  * Verify Webhook handshake from Meta WhatsApp Cloud API
  */
 export function verifyWebhookRequest(req) {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  let mode, token, challenge;
+
+  if (req.query && typeof req.query === 'object') {
+    mode = req.query['hub.mode'];
+    token = req.query['hub.verify_token'];
+    challenge = req.query['hub.challenge'];
+  }
+
+  // Fallback: parse query parameters from URL string if req.query is unavailable
+  if (!mode || !token || !challenge) {
+    try {
+      const urlToParse = req.url.startsWith('http') ? req.url : `http://localhost${req.url}`;
+      const parsedUrl = new URL(urlToParse);
+      mode = mode || parsedUrl.searchParams.get('hub.mode');
+      token = token || parsedUrl.searchParams.get('hub.verify_token');
+      challenge = challenge || parsedUrl.searchParams.get('hub.challenge');
+    } catch {
+      // Ignore URL parse failure
+    }
+  }
 
   const settings = db.getSettings();
-  const expectedToken = settings.whatsappVerifyToken || process.env.WHATSAPP_VERIFY_TOKEN;
+  const configuredToken = process.env.WHATSAPP_VERIFY_TOKEN || settings.whatsappVerifyToken || 'shipplix_agent_webhook_verify_2026';
+  const expectedToken = String(configuredToken).trim();
+  const suppliedToken = token ? String(token).trim() : '';
 
-  if (mode === 'subscribe' && token === expectedToken) {
+  let isTokenMatch = false;
+  if (suppliedToken && expectedToken) {
+    if (suppliedToken.length === expectedToken.length) {
+      try {
+        isTokenMatch = crypto.timingSafeEqual(Buffer.from(suppliedToken), Buffer.from(expectedToken));
+      } catch {
+        isTokenMatch = suppliedToken === expectedToken;
+      }
+    } else {
+      isTokenMatch = false;
+    }
+  }
+
+  if (mode === 'subscribe' && isTokenMatch) {
     db.addWebhookLog({
       direction: 'inbound',
       event: 'webhook_verification_success',
       type: 'handshake',
-      details: 'Meta Webhook verified successfully with challenge: ' + challenge
+      details: `Meta Webhook verified successfully (Challenge: ${challenge})`
     });
     return { verified: true, challenge };
   }
 
+  const maskedToken = suppliedToken ? `${suppliedToken.slice(0, 3)}***` : 'undefined';
   db.addWebhookLog({
     direction: 'inbound',
     event: 'webhook_verification_failed',
     type: 'handshake',
-    details: `Verification failed. Received token: "${token}", Expected: "${expectedToken}"`
+    details: `Verification failed. mode="${mode}", token="${maskedToken}"`
   });
-  return { verified: false };
+  return {
+    verified: false,
+    reason: mode !== 'subscribe' ? 'Invalid hub.mode' : 'Invalid hub.verify_token'
+  };
 }
 
 /**
