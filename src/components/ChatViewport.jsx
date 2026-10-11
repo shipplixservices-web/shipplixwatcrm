@@ -12,6 +12,7 @@ import {
   Database,
   ExternalLink,
   ShieldAlert,
+  AlertCircle,
   Download,
   UserPlus
 } from 'lucide-react';
@@ -172,79 +173,127 @@ export default function ChatViewport({
 
       {/* Messages Canvas */}
       <div className="messages-flow-area" id="messages-container">
-        {messages.map((msg) => {
-          const isCustomer = msg.from === 'customer';
-          const isAi = msg.from === 'ai';
-          const isAgent = msg.from === 'agent';
+        {(() => {
+          // Deduplicate messages by id to prevent duplicate React keys
+          const seen = new Set();
+          const uniqueMessages = [];
+          for (const msg of messages) {
+            const key = msg.id || `${msg.timestamp}_${msg.content}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueMessages.push(msg);
+            }
+          }
 
-          return (
-            <div
-              key={msg.id}
-              className={`msg-bubble-row ${isCustomer ? 'from-customer' : isAi ? 'from-ai' : 'from-agent'}`}
-            >
-              <div className="msg-bubble-card">
-                {/* Author tag */}
-                {!isCustomer && (
-                  <div className={`msg-author-header ${isAi ? 'ai' : 'agent'}`}>
-                    {isAi ? <Bot size={12} /> : <User size={12} />}
-                    <span>{isAi ? 'Shipplix AI Assistant' : 'Human Support Agent'}</span>
-                  </div>
-                )}
+          return uniqueMessages.map((msg, index) => {
+            const isCustomer = msg.from === 'customer';
+            const isAi = msg.from === 'ai';
+            const isAgent = msg.from === 'agent';
+            const isFailed = msg.status === 'failed';
 
-                {/* Image Attachment */}
-                {msg.type === 'image' && msg.mediaUrl && (
-                  <div>
-                    <img
-                      src={msg.mediaUrl}
-                      alt={msg.mediaName || 'WhatsApp attachment'}
-                      className="msg-media-image"
-                      onClick={() => window.open(msg.mediaUrl, '_blank')}
-                    />
-                  </div>
-                )}
-
-                {/* Document Attachment */}
-                {msg.type === 'document' && (
-                  <div className="msg-media-doc">
-                    <FileText size={22} color="#00a884" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {msg.mediaName || 'Document.pdf'}
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>PDF Document</div>
+            return (
+              <div
+                key={msg.id ? `msg_${msg.id}` : `msg_idx_${index}`}
+                className={`msg-bubble-row ${isCustomer ? 'from-customer' : isAi ? 'from-ai' : 'from-agent'}`}
+              >
+                <div className="msg-bubble-card">
+                  {/* Author tag */}
+                  {!isCustomer && (
+                    <div className={`msg-author-header ${isAi ? 'ai' : 'agent'}`}>
+                      {isAi ? <Bot size={12} /> : <User size={12} />}
+                      <span>{isAi ? 'Shipplix AI Assistant' : 'Human Support Agent'}</span>
                     </div>
-                    {msg.mediaUrl && (
-                      <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--text-main)' }}>
-                        <Download size={14} />
-                      </a>
+                  )}
+
+                  {/* Image Attachment */}
+                  {msg.type === 'image' && msg.mediaUrl && (
+                    <div>
+                      <img
+                        src={msg.mediaUrl}
+                        alt={msg.mediaName || 'WhatsApp attachment'}
+                        className="msg-media-image"
+                        onClick={() => window.open(msg.mediaUrl, '_blank')}
+                      />
+                    </div>
+                  )}
+
+                  {/* Document Attachment */}
+                  {msg.type === 'document' && (
+                    <div className="msg-media-doc">
+                      <FileText size={22} color="#00a884" />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {msg.mediaName || 'Document.pdf'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>PDF Document</div>
+                      </div>
+                      {msg.mediaUrl && (
+                        <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--text-main)' }}>
+                          <Download size={14} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Message Content */}
+                  <div className="msg-text-content">{msg.content}</div>
+
+                  {/* Error banner if delivery failed */}
+                  {isFailed && msg.errorMessage && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        fontSize: '11px',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      title={msg.errorMessage}
+                    >
+                      <AlertCircle size={12} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {msg.errorMessage.length > 70 ? msg.errorMessage.slice(0, 70) + '...' : msg.errorMessage}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* RAG Context Sources Tag */}
+                  {isAi && msg.ragSources && msg.ragSources.length > 0 && (
+                    <div className="rag-sources-pill" title="Knowledge Base chunks retrieved via RAG for this answer">
+                      <Database size={11} />
+                      <span>RAG: {msg.ragSources.join(', ')}</span>
+                    </div>
+                  )}
+
+                  {/* Footer Timestamp & Status */}
+                  <div className="msg-meta-footer">
+                    <span>{formatMessageTime(msg.timestamp)}</span>
+                    {!isCustomer && (
+                      <span
+                        className={isFailed ? 'ticks-red' : 'ticks-blue'}
+                        title={isFailed ? `Failed: ${msg.errorMessage || 'Meta delivery error'}` : msg.status}
+                        style={{ color: isFailed ? '#ef4444' : undefined }}
+                      >
+                        {isFailed ? (
+                          <AlertCircle size={13} />
+                        ) : msg.status === 'read' ? (
+                          <CheckCheck size={14} />
+                        ) : (
+                          <Check size={14} />
+                        )}
+                      </span>
                     )}
                   </div>
-                )}
-
-                {/* Message Content */}
-                <div className="msg-text-content">{msg.content}</div>
-
-                {/* RAG Context Sources Tag */}
-                {isAi && msg.ragSources && msg.ragSources.length > 0 && (
-                  <div className="rag-sources-pill" title="Knowledge Base chunks retrieved via RAG for this answer">
-                    <Database size={11} />
-                    <span>RAG: {msg.ragSources.join(', ')}</span>
-                  </div>
-                )}
-
-                {/* Footer Timestamp & Status */}
-                <div className="msg-meta-footer">
-                  <span>{formatMessageTime(msg.timestamp)}</span>
-                  {!isCustomer && (
-                    <span className="ticks-blue" title={msg.status}>
-                      {msg.status === 'read' ? <CheckCheck size={14} /> : <Check size={14} />}
-                    </span>
-                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
         <div ref={messagesEndRef} />
       </div>
 
