@@ -20,77 +20,97 @@ router.get('/', (req, res) => {
  * Create and add a new WhatsApp contact
  */
 router.post('/', async (req, res) => {
-  const { phoneNumber, name, mode = 'ai', tags = ['New Contact'], initialMessage = '' } = req.body;
+  try {
+    const { phoneNumber, name, mode = 'ai', tags = ['New Contact'], initialMessage = '' } = req.body || {};
 
-  if (!phoneNumber || !phoneNumber.trim()) {
-    return res.status(400).json({ success: false, error: 'Phone number is required' });
-  }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    }
 
-  // Format phone number (ensure standard E.164 + prefix)
-  let cleanNumber = phoneNumber.trim().replace(/[^\d+]/g, '');
-  if (!cleanNumber.startsWith('+')) {
-    cleanNumber = '+' + cleanNumber;
-  }
+    // Format phone number (ensure standard E.164 + prefix)
+    let cleanNumber = phoneNumber.trim().replace(/[^\d+]/g, '');
+    if (!cleanNumber.startsWith('+')) {
+      cleanNumber = '+' + cleanNumber;
+    }
 
-  if (cleanNumber.length < 8) {
-    return res.status(400).json({ success: false, error: 'Please enter a valid phone number with country code (e.g. +14155552671)' });
-  }
+    if (cleanNumber.length < 8) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid phone number with country code (e.g. +14155552671)' });
+    }
 
-  // Check if contact already exists
-  const existingChat = db.getChats().find(c => c.phoneNumber === cleanNumber);
-  if (existingChat) {
-    return res.status(409).json({
+    // Check if contact already exists
+    const existingChat = db.getChats().find(c => c.phoneNumber === cleanNumber);
+    if (existingChat) {
+      return res.status(409).json({
+        success: false,
+        error: `Contact with phone number ${cleanNumber} already exists.`,
+        chat: existingChat
+      });
+    }
+
+    // Process tags
+    const parsedTags = Array.isArray(tags)
+      ? tags
+      : typeof tags === 'string'
+        ? tags.split(',').map(t => t.trim()).filter(Boolean)
+        : ['New Contact'];
+
+    // Create contact in database
+    const chat = db.createContact({
+      phoneNumber: cleanNumber,
+      name: name?.trim() || cleanNumber,
+      mode: mode === 'human' ? 'human' : 'ai',
+      tags: parsedTags.length > 0 ? parsedTags : ['New Contact']
+    });
+
+    // Optional: dispatch initial outbound WhatsApp message
+    let initialMsgRecord = null;
+    let sendResult = null;
+    if (initialMessage && initialMessage.trim()) {
+      try {
+        sendResult = await sendMetaWhatsAppMessage({
+          to: cleanNumber,
+          type: 'text',
+          text: initialMessage.trim()
+        });
+      } catch (sendErr) {
+        console.warn('Initial outbound message dispatch warning:', sendErr.message);
+        sendResult = { success: false, error: sendErr.message };
+      }
+
+      initialMsgRecord = db.addMessage({
+        chatId: chat.id,
+        from: 'agent',
+        senderName: 'Support Agent (Admin)',
+        type: 'text',
+        content: initialMessage.trim(),
+        metaMessageId: sendResult?.messageId || null,
+        status: sendResult?.success ? 'delivered' : 'sent'
+      });
+    }
+
+    try {
+      broadcastEvent('chat_updated', chat);
+      if (initialMsgRecord) {
+        broadcastEvent('new_message', initialMsgRecord);
+      }
+    } catch (broadcastErr) {
+      console.warn('SSE broadcast warning:', broadcastErr.message);
+    }
+
+    const finalChat = db.getChat(chat.id) || chat;
+    res.status(201).json({
+      success: true,
+      chat: finalChat,
+      initialMessage: initialMsgRecord,
+      sendNotice: sendResult && !sendResult.success ? sendResult.error : null
+    });
+  } catch (err) {
+    console.error('Error creating contact:', err);
+    res.status(500).json({
       success: false,
-      error: `Contact with phone number ${cleanNumber} already exists.`,
-      chat: existingChat
+      error: err.message || 'Failed to create contact'
     });
   }
-
-  // Process tags
-  const parsedTags = Array.isArray(tags)
-    ? tags
-    : typeof tags === 'string'
-      ? tags.split(',').map(t => t.trim()).filter(Boolean)
-      : ['New Contact'];
-
-  // Create contact in database
-  const chat = db.createContact({
-    phoneNumber: cleanNumber,
-    name: name?.trim() || cleanNumber,
-    mode: mode === 'human' ? 'human' : 'ai',
-    tags: parsedTags.length > 0 ? parsedTags : ['New Contact']
-  });
-
-  // Optional: dispatch initial outbound WhatsApp message
-  let initialMsgRecord = null;
-  if (initialMessage && initialMessage.trim()) {
-    const sendResult = await sendMetaWhatsAppMessage({
-      to: cleanNumber,
-      type: 'text',
-      text: initialMessage.trim()
-    });
-
-    initialMsgRecord = db.addMessage({
-      chatId: chat.id,
-      from: 'agent',
-      senderName: 'Support Agent (Admin)',
-      type: 'text',
-      content: initialMessage.trim(),
-      metaMessageId: sendResult.messageId,
-      status: sendResult.success ? 'delivered' : 'sent'
-    });
-  }
-
-  broadcastEvent('chat_updated', chat);
-  if (initialMsgRecord) {
-    broadcastEvent('new_message', initialMsgRecord);
-  }
-
-  res.status(201).json({
-    success: true,
-    chat: db.getChat(chat.id),
-    initialMessage: initialMsgRecord
-  });
 });
 
 /**

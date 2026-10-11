@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/api/webhook",
-      "destination": "/api/webhook.js"
+      "destination": "/api/webhook"
     },
     {
       "source": "/api/(.*)",
-      "destination": "/api/[...all].js"
+      "destination": "/api"
     },
     {
       "source": "/(.*)",

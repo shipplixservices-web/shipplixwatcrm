@@ -8,6 +8,23 @@ import SettingsModal from './components/SettingsModal.jsx';
 import WhatsAppSimulatorDrawer from './components/WhatsAppSimulatorDrawer.jsx';
 import AddContactModal from './components/AddContactModal.jsx';
 
+async function safeJsonParse(res) {
+  const contentType = res.headers?.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      return await res.json();
+    } catch {
+      return { success: false, error: 'Malformed JSON response from server' };
+    }
+  }
+  const text = await res.text();
+  const clean = text.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+  return {
+    success: false,
+    error: clean ? clean.slice(0, 140) : `Server responded with HTTP ${res.status}`
+  };
+}
+
 export default function App() {
   const [theme, setTheme] = useState('dark');
   const [chats, setChats] = useState([]);
@@ -327,7 +344,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contactData)
       });
-      const data = await res.json();
+      const data = await safeJsonParse(res);
       if (res.ok && data.success && data.chat) {
         setChats(prev => {
           const exists = prev.some(c => c.id === data.chat.id);
@@ -342,7 +359,7 @@ export default function App() {
       }
       return {
         success: false,
-        error: data.error || 'Failed to add contact',
+        error: data.error || (res.ok ? 'Failed to add contact' : `Server error (${res.status})`),
         chat: data.chat
       };
     } catch (err) {
