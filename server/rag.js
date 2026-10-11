@@ -1,8 +1,20 @@
 import fs from 'fs';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
 import { db } from './db.js';
+
+let cachedPdfParser = null;
+async function getPdfParser() {
+  if (!cachedPdfParser) {
+    try {
+      const { createRequire } = await import('module');
+      const req = createRequire(import.meta.url);
+      cachedPdfParser = req('pdf-parse');
+    } catch (e) {
+      console.warn('pdf-parse native library not available in serverless environment:', e.message);
+      return null;
+    }
+  }
+  return cachedPdfParser;
+}
 
 // Common English stopwords for search filtering
 const STOP_WORDS = new Set([
@@ -35,8 +47,12 @@ export function tokenize(text = '') {
 export async function extractTextFromFile(filePath, mimeType) {
   try {
     if (mimeType === 'application/pdf' || filePath.toLowerCase().endsWith('.pdf')) {
+      const parser = await getPdfParser();
+      if (!parser) {
+        return 'Notice: PDF text parsing is disabled in serverless runtime. Please upload text or markdown files.';
+      }
       const dataBuffer = fs.readFileSync(filePath);
-      const parsed = await pdf(dataBuffer);
+      const parsed = await parser(dataBuffer);
       return parsed.text || '';
     } else {
       // Plain text, markdown, json, csv

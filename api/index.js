@@ -5,7 +5,10 @@ import app from '../server/app.js';
  * Dispatches all `/api/*` endpoints (chats, kb, settings, simulator, events, health).
  */
 export default function handler(req, res) {
-  if (req.url.includes('index.js')) {
+  const matchedPath = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'];
+  if (matchedPath && matchedPath.startsWith('/api') && (req.url === '/api' || req.url === '/')) {
+    req.url = matchedPath;
+  } else if (req.url.includes('index.js')) {
     req.url = req.url.replace('/index.js', '') || '/api';
   }
   return app(req, res);
