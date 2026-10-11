@@ -1,9 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { db } from './db.js';
 import { searchKnowledgeBase } from './rag.js';
 
 /**
- * Generate an AI response using Google Gemini 2.5 Flash
+ * Generate an AI response using Google Gemini
  * with RAG knowledge base context injection and multimodal support.
  */
 export async function generateGeminiResponse({
@@ -16,7 +16,7 @@ export async function generateGeminiResponse({
 }) {
   const settings = db.getSettings();
   const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
-  const configuredModel = settings.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const configuredModel = settings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
   // 1. Perform RAG search across knowledge base
   const ragResult = await searchKnowledgeBase(customerMessage || mediaName || 'customer document inquiry');
@@ -84,22 +84,30 @@ Guidelines:
     });
   }
 
-  // 6. Call live Gemini API with model fallback
-  const modelsToTry = [configuredModel, 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+  // 6. Call live Gemini API with modern @google/genai SDK
+  const modelsToTry = [configuredModel, 'gemini-3.8-flash', 'gemini-flash-latest'].filter(Boolean);
   let lastError = null;
 
   for (const modelName of modelsToTry) {
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: fullSystemInstruction,
+      const ai = new GoogleGenAI({
+        apiKey: apiKey.trim(),
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
       });
 
       const startTime = Date.now();
-      const result = await model.generateContent({ contents });
-      const response = await result.response;
-      const text = response.text();
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents,
+        config: {
+          systemInstruction: fullSystemInstruction,
+        }
+      });
+      const text = response.text || '';
       const responseTimeMs = Date.now() - startTime;
 
       return {
@@ -116,7 +124,7 @@ Guidelines:
       console.warn(`Gemini model ${modelName} failed, trying next:`, err.message);
       lastError = err;
       // If error is invalid API key, don't keep retrying other models
-      if (err.message && err.message.includes('API_KEY_INVALID')) {
+      if (err.message && (err.message.includes('API_KEY_INVALID') || err.message.includes('API key not valid'))) {
         break;
       }
     }
@@ -168,7 +176,7 @@ function simulateSmartAgentResponse({ customerMessage = '', mediaType, ragResult
   return {
     success: true,
     text: reply,
-    modelUsed: 'gemini-2.5-flash (Demonstration Engine with Live RAG)',
+    modelUsed: 'gemini-3.8-flash (Demonstration Engine with Live RAG)',
     ragSources,
     ragChunksUsed: ragResult?.retrievedCount || 0,
     tokensSaved: ragResult?.estimatedTokensSaved || 120,

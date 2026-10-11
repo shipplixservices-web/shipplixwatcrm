@@ -1,5 +1,5 @@
 import express from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { db } from '../db.js';
 import { broadcastEvent } from '../events.js';
@@ -88,11 +88,20 @@ router.post('/test-gemini', async (req, res) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(targetKey);
-    const m = genAI.getGenerativeModel({ model: targetModel });
+    const ai = new GoogleGenAI({
+      apiKey: targetKey.trim(),
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
     const startTime = Date.now();
-    const result = await m.generateContent('Respond with "WhatsApp AI Agent Active" in exactly 4 words.');
-    const reply = (await result.response).text().trim();
+    const result = await ai.models.generateContent({
+      model: targetModel || 'gemini-3.8-flash',
+      contents: 'Respond with "WhatsApp AI Agent Active" in exactly 4 words.'
+    });
+    const reply = (result.text || '').trim();
     const latency = Date.now() - startTime;
 
     res.json({

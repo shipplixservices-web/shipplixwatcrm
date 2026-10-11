@@ -1,0 +1,7 @@
+{
+  "name": "WhatsApp AI Agent CRM",
+  "description": "WhatsApp Business Cloud API & Gemini CRM SaaS. Automate customer conversations with RAG Knowledge Base, human-in-the-loop override, and multimodal support.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
