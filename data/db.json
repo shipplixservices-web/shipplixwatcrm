@@ -1,0 +1,431 @@
+{
+  "settings": {
+    "geminiApiKey": "",
+    "geminiModel": "gemini-2.5-flash",
+    "systemPrompt": "You are Shipplix AI, an intelligent, empathetic, and professional customer support agent for Shipplix Logistics & E-Commerce Delivery.\nYour goal is to provide accurate, concise, and helpful answers to customer inquiries.\nAlways prioritize information from the Knowledge Base when available.\nKeep your replies short (under 3 sentences when possible), professional, warm, and WhatsApp-friendly.\nIf you do not have enough information to answer definitively, politely offer to connect the customer with a human specialist.",
+    "defaultMode": "ai",
+    "globalAutoPilot": true,
+    "whatsappPhoneNumberId": "",
+    "whatsappWabaId": "",
+    "whatsappAccessToken": "",
+    "whatsappVerifyToken": "shipplix_agent_webhook_verify_2026",
+    "supabaseUrl": "",
+    "supabaseAnonKey": "",
+    "supabaseServiceKey": "",
+    "featureLimits": {
+      "plan": "Pro Tier (Active)",
+      "maxMonthlyMessages": 10000,
+      "usedMessagesThisMonth": 342,
+      "ragTopK": 3,
+      "ragSimilarityThreshold": 0.3,
+      "autoReplyDelayMs": 800,
+      "multimodalVision": true
+    }
+  },
+  "chats": [
+    {
+      "id": "chat_1",
+      "phoneNumber": "+14155552671",
+      "name": "Sarah Jenkins",
+      "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+      "mode": "ai",
+      "lastMessage": "Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) across all NYC boroughs including Brooklyn with signature or secure drop.",
+      "lastMessageAt": "2026-10-11T05:41:05.994Z",
+      "unreadCount": 2,
+      "tags": [
+        "Order Tracking",
+        "VIP"
+      ],
+      "createdAt": "2026-10-09T05:32:24.972Z"
+    },
+    {
+      "id": "chat_2",
+      "phoneNumber": "+447911123456",
+      "name": "Marcus Vance",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+      "mode": "human",
+      "lastMessage": "Hello Marcus, for over 500 parcels/wk we apply Enterprise Tier at £2.85/parcel. I have sent the contract details to your account.",
+      "lastMessageAt": "2026-10-11T05:41:38.017Z",
+      "unreadCount": 0,
+      "tags": [
+        "Commercial",
+        "Pricing Request"
+      ],
+      "createdAt": "2026-10-10T05:32:24.972Z"
+    },
+    {
+      "id": "chat_3",
+      "phoneNumber": "+16505559821",
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      "mode": "ai",
+      "lastMessage": "Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) across all NYC boroughs including Brooklyn with signature or secure drop.",
+      "lastMessageAt": "2026-10-11T05:41:55.969Z",
+      "unreadCount": 2,
+      "tags": [
+        "Express Delivery"
+      ],
+      "createdAt": "2026-10-08T05:32:24.972Z"
+    },
+    {
+      "id": "chat_4",
+      "phoneNumber": "+491512345678",
+      "name": "Lukas Meyer",
+      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
+      "mode": "ai",
+      "lastMessage": "Invoice #SHP-2026-09 received. Thanks for the quick confirmation!",
+      "lastMessageAt": "2026-10-11T03:32:24.972Z",
+      "unreadCount": 0,
+      "tags": [
+        "Billing"
+      ],
+      "createdAt": "2026-10-06T05:32:24.972Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1_1",
+      "chatId": "chat_1",
+      "from": "customer",
+      "senderName": "Sarah Jenkins",
+      "type": "text",
+      "content": "Hi! Could you check where my package SPX-8921 is? It was supposed to arrive yesterday.",
+      "timestamp": "2026-10-11T05:24:24.972Z",
+      "status": "read"
+    },
+    {
+      "id": "msg_1_2",
+      "chatId": "chat_1",
+      "from": "ai",
+      "senderName": "Shipplix AI",
+      "type": "text",
+      "content": "Hello Sarah! According to our live dispatch records, parcel SPX-8921 is with driver Dave and scheduled for delivery today before 4:30 PM. You will receive an SMS reminder 30 minutes prior.",
+      "timestamp": "2026-10-11T05:25:24.972Z",
+      "status": "read",
+      "ragSources": [
+        "Shipplix Express Delivery Policy & SLA",
+        "Real-Time Dispatch Rules"
+      ],
+      "tokensUsed": 42
+    },
+    {
+      "id": "msg_1_3",
+      "chatId": "chat_1",
+      "from": "customer",
+      "senderName": "Sarah Jenkins",
+      "type": "text",
+      "content": "Great, tracking number SPX-8921 is out for delivery today. Thank you!",
+      "timestamp": "2026-10-11T05:27:24.972Z",
+      "status": "read"
+    },
+    {
+      "id": "msg_2_1",
+      "chatId": "chat_2",
+      "from": "customer",
+      "senderName": "Marcus Vance",
+      "type": "text",
+      "content": "Hello, we are an e-commerce brand dispatching ~600 orders weekly from London.",
+      "timestamp": "2026-10-11T05:07:24.972Z",
+      "status": "read"
+    },
+    {
+      "id": "msg_2_2",
+      "chatId": "chat_2",
+      "from": "customer",
+      "senderName": "Marcus Vance",
+      "type": "text",
+      "content": "Can you provide the bulk shipment pricing tier for over 500 packages per week?",
+      "timestamp": "2026-10-11T05:14:24.972Z",
+      "status": "read"
+    },
+    {
+      "id": "msg_3_1",
+      "chatId": "chat_3",
+      "from": "customer",
+      "senderName": "Elena Rostova",
+      "type": "text",
+      "content": "Does your express shipping service include weekend delivery in Brooklyn?",
+      "timestamp": "2026-10-11T04:50:24.972Z",
+      "status": "delivered"
+    },
+    {
+      "id": "msg_1791697184771_hjan",
+      "timestamp": "2026-10-11T05:39:44.771Z",
+      "status": "read",
+      "chatId": "chat_1",
+      "from": "customer",
+      "senderName": "Sarah Jenkins",
+      "type": "text",
+      "content": "Do you offer weekend delivery in Brooklyn?",
+      "mediaUrl": null,
+      "mediaName": null
+    },
+    {
+      "id": "msg_1791697185584_erli",
+      "timestamp": "2026-10-11T05:39:45.584Z",
+      "status": "delivered",
+      "chatId": "chat_1",
+      "from": "ai",
+      "senderName": "Shipplix AI",
+      "type": "text",
+      "content": "Thank you for reaching out! I would be glad to help. Could you provide your tracking number or shipment reference so I can look up the details for you?",
+      "ragSources": [],
+      "tokensSaved": 237,
+      "modelUsed": "gemini-2.5-flash (Demonstration Engine with Live RAG)"
+    },
+    {
+      "id": "msg_1791697265178_c15k",
+      "timestamp": "2026-10-11T05:41:05.178Z",
+      "status": "read",
+      "chatId": "chat_1",
+      "from": "customer",
+      "senderName": "Sarah Jenkins",
+      "type": "text",
+      "content": "Do you offer weekend delivery in Brooklyn?",
+      "mediaUrl": null,
+      "mediaName": null
+    },
+    {
+      "id": "msg_1791697265994_pq7w",
+      "timestamp": "2026-10-11T05:41:05.994Z",
+      "status": "delivered",
+      "chatId": "chat_1",
+      "from": "ai",
+      "senderName": "Shipplix AI",
+      "type": "text",
+      "content": "Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) across all NYC boroughs including Brooklyn with signature or secure drop.",
+      "ragSources": [
+        "Shipplix Logistics FAQ & Service Guide.pdf (Chunk #2)",
+        "Shipplix Logistics FAQ & Service Guide.pdf (Chunk #1)",
+        "Shipplix Logistics FAQ & Service Guide.pdf (Chunk #3)"
+      ],
+      "tokensSaved": 89,
+      "modelUsed": "gemini-2.5-flash (Demonstration Engine with Live RAG)"
+    },
+    {
+      "id": "msg_1791697278854_9kvl",
+      "timestamp": "2026-10-11T05:41:18.854Z",
+      "status": "read",
+      "chatId": "chat_2",
+      "from": "customer",
+      "senderName": "Marcus Vance",
+      "type": "text",
+      "content": "What is your pricing tier for 500 packages weekly?",
+      "mediaUrl": null,
+      "mediaName": null
+    },
+    {
+      "id": "msg_1791697298017_wqjk",
+      "timestamp": "2026-10-11T05:41:38.017Z",
+      "status": "delivered",
+      "chatId": "chat_2",
+      "from": "agent",
+      "senderName": "Support Agent (Admin)",
+      "type": "text",
+      "content": "Hello Marcus, for over 500 parcels/wk we apply Enterprise Tier at £2.85/parcel. I have sent the contract details to your account.",
+      "metaMessageId": "wamid.simulated_1791697298017"
+    },
+    {
+      "id": "msg_1791697315964_d96k",
+      "timestamp": "2026-10-11T05:41:55.964Z",
+      "status": "read",
+      "chatId": "chat_3",
+      "from": "customer",
+      "senderName": "Elena Rostova",
+      "type": "text",
+      "content": "Does your express shipping service include weekend delivery in Brooklyn?",
+      "mediaUrl": null,
+      "mediaName": null,
+      "metaMessageId": "wamid.HBgLMTY1MDU1NTk4MjEVAgASGBQzQTkyREI4NzExNDMyMDkzODcA"
+    },
+    {
+      "id": "msg_1791697315969_nxh5",
+      "timestamp": "2026-10-11T05:41:55.969Z",
+      "status": "delivered",
+      "chatId": "chat_3",
+      "from": "ai",
+      "senderName": "Shipplix AI",
+      "type": "text",
+      "content": "Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) across all NYC boroughs including Brooklyn with signature or secure drop.",
+      "metaMessageId": "wamid.simulated_1791697315969",
+      "ragSources": [
+        "Shipplix Logistics FAQ & Service Guide.pdf (Chunk #2)",
+        "Commercial Volume Pricing & Enterprise SLA.txt (Chunk #1)"
+      ],
+      "tokensSaved": 132,
+      "modelUsed": "gemini-2.5-flash (Demonstration Engine with Live RAG)"
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc_1",
+      "title": "Shipplix Logistics FAQ & Service Guide.pdf",
+      "filename": "shipplix_faq.pdf",
+      "fileType": "application/pdf",
+      "size": 142800,
+      "chunkCount": 6,
+      "status": "indexed",
+      "uploadedAt": "2026-10-04T05:32:24.972Z",
+      "summary": "Comprehensive SLA, delivery cutoffs, express rates, weekend coverage, and return policy for Shipplix customers."
+    },
+    {
+      "id": "doc_2",
+      "title": "Commercial Volume Pricing & Enterprise SLA.txt",
+      "filename": "enterprise_pricing.txt",
+      "fileType": "text/plain",
+      "size": 38200,
+      "chunkCount": 4,
+      "status": "indexed",
+      "uploadedAt": "2026-10-07T05:32:24.972Z",
+      "summary": "Tier 1 (50-200 parcels/wk: £4.20/ea), Tier 2 (200-500 parcels/wk: £3.45/ea), Enterprise (500+ parcels/wk: £2.85/ea + dedicated courier)."
+    }
+  ],
+  "chunks": [
+    {
+      "id": "chunk_1_1",
+      "documentId": "doc_1",
+      "docTitle": "Shipplix Logistics FAQ & Service Guide.pdf",
+      "chunkIndex": 0,
+      "content": "Shipplix Standard Delivery operates Monday through Friday between 8:00 AM and 6:00 PM. Typical transit time is 1-3 business days within metropolitan zones. Tracking updates are sent automatically via WhatsApp and SMS at each hub scan.",
+      "tokenEstimate": 45
+    },
+    {
+      "id": "chunk_1_2",
+      "documentId": "doc_1",
+      "docTitle": "Shipplix Logistics FAQ & Service Guide.pdf",
+      "chunkIndex": 1,
+      "content": "Weekend & Express Coverage: Saturday and Sunday deliveries are available on Shipplix Express Plus tiers across all primary boroughs in New York City (including Brooklyn, Manhattan, Queens) and Greater London. Deliveries occur from 9:00 AM to 5:00 PM with direct recipient signature or secure porch drop.",
+      "tokenEstimate": 54
+    },
+    {
+      "id": "chunk_1_3",
+      "documentId": "doc_1",
+      "docTitle": "Shipplix Logistics FAQ & Service Guide.pdf",
+      "chunkIndex": 2,
+      "content": "Damaged or Missing Items & Return Policy: Customers can initiate an automated return within 14 days of delivery. Photos of damage can be sent directly to this WhatsApp number for instant automated inspection and replacement dispatch within 24 hours.",
+      "tokenEstimate": 49
+    },
+    {
+      "id": "chunk_2_1",
+      "documentId": "doc_2",
+      "docTitle": "Commercial Volume Pricing & Enterprise SLA.txt",
+      "chunkIndex": 0,
+      "content": "Commercial E-Commerce Volume Tiers: For businesses shipping over 500 parcels weekly, Enterprise Tier applies at £2.85 (or $3.60 USD) per standard domestic parcel under 2kg. Includes free daily scheduled warehouse pickups, direct API integration, and guaranteed next-day delivery.",
+      "tokenEstimate": 51
+    },
+    {
+      "id": "chunk_2_2",
+      "documentId": "doc_2",
+      "docTitle": "Commercial Volume Pricing & Enterprise SLA.txt",
+      "chunkIndex": 1,
+      "content": "Enterprise Account Manager: For companies sending more than 500 parcels per week, a dedicated Logistics Success Manager is assigned. Invoicing terms are NET-30 with weekly consolidated billing.",
+      "tokenEstimate": 38
+    }
+  ],
+  "webhookLogs": [
+    {
+      "id": "log_1791697315968",
+      "timestamp": "2026-10-11T05:41:55.968Z",
+      "direction": "outbound",
+      "event": "send_message",
+      "sender": "Shipplix AI / Agent",
+      "recipient": "+16505559821",
+      "type": "text",
+      "details": "Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) across all NYC boroughs (Simulated dispatch - Meta credentials pending in Settings)",
+      "status": "simulated_success"
+    },
+    {
+      "id": "log_1791697315966",
+      "timestamp": "2026-10-11T05:41:55.966Z",
+      "direction": "inbound",
+      "event": "message_received",
+      "sender": "+16505559821",
+      "type": "text",
+      "details": "\"Does your express shipping service include weekend delivery in Brooklyn?\" from Elena Rostova"
+    },
+    {
+      "id": "log_1791697305589",
+      "timestamp": "2026-10-11T05:41:45.589Z",
+      "direction": "inbound",
+      "event": "webhook_verification_success",
+      "type": "handshake",
+      "details": "Meta Webhook verified successfully with challenge: 1158525"
+    },
+    {
+      "id": "log_1791697298016",
+      "timestamp": "2026-10-11T05:41:38.016Z",
+      "direction": "outbound",
+      "event": "send_message",
+      "sender": "Shipplix AI / Agent",
+      "recipient": "+447911123456",
+      "type": "text",
+      "details": "Hello Marcus, for over 500 parcels/wk we apply Enterprise Tier at £2.85/parcel. I have sent the cont (Simulated dispatch - Meta credentials pending in Settings)",
+      "status": "simulated_success"
+    },
+    {
+      "id": "log_1791697278855",
+      "timestamp": "2026-10-11T05:41:18.855Z",
+      "direction": "inbound",
+      "event": "simulated_incoming_message",
+      "sender": "+447911123456",
+      "type": "text",
+      "details": "[Simulated] \"What is your pricing tier for 500 packages weekly?\" from Marcus Vance"
+    },
+    {
+      "id": "log_1791697265997",
+      "timestamp": "2026-10-11T05:41:05.997Z",
+      "direction": "outbound",
+      "event": "simulated_ai_response",
+      "sender": "Shipplix AI Agent",
+      "recipient": "+14155552671",
+      "type": "text",
+      "details": "[Auto-replied] \"Yes! Shipplix Express Plus covers weekend deliveries (Sat & Sun 9 AM - 5 PM) acr...\" (Model: gemini-2.5-flash (Demonstration Engine with Live RAG))"
+    },
+    {
+      "id": "log_1791697265179",
+      "timestamp": "2026-10-11T05:41:05.179Z",
+      "direction": "inbound",
+      "event": "simulated_incoming_message",
+      "sender": "+14155552671",
+      "type": "text",
+      "details": "[Simulated] \"Do you offer weekend delivery in Brooklyn?\" from Sarah Jenkins"
+    },
+    {
+      "id": "log_1791697185586",
+      "timestamp": "2026-10-11T05:39:45.586Z",
+      "direction": "outbound",
+      "event": "simulated_ai_response",
+      "sender": "Shipplix AI Agent",
+      "recipient": "+14155552671",
+      "type": "text",
+      "details": "[Auto-replied] \"Thank you for reaching out! I would be glad to help. Could you provide your trac...\" (Model: gemini-2.5-flash (Demonstration Engine with Live RAG))"
+    },
+    {
+      "id": "log_1791697184773",
+      "timestamp": "2026-10-11T05:39:44.773Z",
+      "direction": "inbound",
+      "event": "simulated_incoming_message",
+      "sender": "+14155552671",
+      "type": "text",
+      "details": "[Simulated] \"Do you offer weekend delivery in Brooklyn?\" from Sarah Jenkins"
+    },
+    {
+      "id": "log_1",
+      "timestamp": "2026-10-11T05:27:24.972Z",
+      "direction": "inbound",
+      "event": "messages",
+      "sender": "+14155552671",
+      "type": "text",
+      "details": "Customer message received. AI Mode active -> Auto-replied via Gemini 2.5 Flash with RAG."
+    },
+    {
+      "id": "log_2",
+      "timestamp": "2026-10-11T05:14:24.972Z",
+      "direction": "inbound",
+      "event": "messages",
+      "sender": "+447911123456",
+      "type": "text",
+      "details": "Customer message received. Chat is in HUMAN mode -> Queued for manual agent response."
+    }
+  ]
+}

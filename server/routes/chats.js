@@ -1,0 +1,161 @@
+import express from 'express';
+import { db } from '../db.js';
+import { sendMetaWhatsAppMessage } from '../whatsapp.js';
+import { generateGeminiResponse } from '../gemini.js';
+import { broadcastEvent } from '../events.js';
+
+const router = express.Router();
+
+/**
+ * GET /api/chats
+ * List all active WhatsApp conversations
+ */
+router.get('/', (req, res) => {
+  const chats = db.getChats();
+  res.json({ success: true, chats });
+});
+
+/**
+ * GET /api/chats/:id
+ * Retrieve chat details and all messages
+ */
+router.get('/:id', (req, res) => {
+  const { id } = req.params;
+  const chat = db.getChat(id);
+  if (!chat) {
+    return res.status(404).json({ success: false, error: 'Chat not found' });
+  }
+  const messages = db.getMessages(chat.id);
+  res.json({ success: true, chat, messages });
+});
+
+/**
+ * POST /api/chats/:id/messages
+ * Send a manual message from Human Admin panel
+ */
+router.post('/:id/messages', async (req, res) => {
+  const { id } = req.params;
+  const { content, type = 'text', mediaUrl, mediaName } = req.body;
+
+  const chat = db.getChat(id);
+  if (!chat) {
+    return res.status(404).json({ success: false, error: 'Chat not found' });
+  }
+
+  if (!content && !mediaUrl) {
+    return res.status(400).json({ success: false, error: 'Message content is required' });
+  }
+
+  // Dispatch via official Meta WhatsApp Cloud API
+  const sendResult = await sendMetaWhatsAppMessage({
+    to: chat.phoneNumber,
+    type,
+    text: content,
+    mediaUrl,
+    mediaName
+  });
+
+  // Save admin message to DB
+  const savedMsg = db.addMessage({
+    chatId: chat.id,
+    from: 'agent',
+    senderName: 'Support Agent (Admin)',
+    type,
+    content,
+    mediaUrl,
+    mediaName,
+    metaMessageId: sendResult.messageId,
+    status: sendResult.success ? 'delivered' : 'failed'
+  });
+
+  // Mark incoming messages as read
+  db.markChatAsRead(chat.id);
+
+  broadcastEvent('new_message', savedMsg);
+  broadcastEvent('chat_updated', db.getChat(chat.id));
+
+  res.json({ success: true, message: savedMsg, sendResult });
+});
+
+/**
+ * PATCH /api/chats/:id/mode
+ * Switch chat mode between 'ai' and 'human'
+ */
+router.patch('/:id/mode', (req, res) => {
+  const { id } = req.params;
+  const { mode } = req.body;
+
+  if (mode !== 'ai' && mode !== 'human') {
+    return res.status(400).json({ success: false, error: 'Mode must be "ai" or "human"' });
+  }
+
+  const updatedChat = db.updateChatMode(id, mode);
+  if (!updatedChat) {
+    return res.status(404).json({ success: false, error: 'Chat not found' });
+  }
+
+  broadcastEvent('chat_mode_changed', { chatId: updatedChat.id, mode });
+  broadcastEvent('chat_updated', updatedChat);
+
+  res.json({ success: true, chat: updatedChat });
+});
+
+/**
+ * POST /api/chats/:id/suggest-reply
+ * AI Copilot: Generate an AI reply with RAG for human agent to review/edit
+ */
+router.post('/:id/suggest-reply', async (req, res) => {
+  const { id } = req.params;
+  const chat = db.getChat(id);
+  if (!chat) {
+    return res.status(404).json({ success: false, error: 'Chat not found' });
+  }
+
+  const messages = db.getMessages(chat.id);
+  const lastCustomerMsg = [...messages].reverse().find(m => m.from === 'customer');
+
+  const aiSuggestion = await generateGeminiResponse({
+    chatId: chat.id,
+    customerMessage: lastCustomerMsg?.content || 'Hello, how can you help me today?'
+  });
+
+  res.json({
+    success: true,
+    suggestion: aiSuggestion.text,
+    ragSources: aiSuggestion.ragSources,
+    modelUsed: aiSuggestion.modelUsed
+  });
+});
+
+/**
+ * POST /api/chats/:id/read
+ * Mark chat messages as read
+ */
+router.post('/:id/read', (req, res) => {
+  const { id } = req.params;
+  const chat = db.markChatAsRead(id);
+  if (chat) {
+    broadcastEvent('chat_updated', chat);
+    return res.json({ success: true, chat });
+  }
+  res.status(404).json({ success: false, error: 'Chat not found' });
+});
+
+/**
+ * DELETE /api/chats/:id
+ * Delete a conversation
+ */
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
+  const chat = db.getChat(id);
+  if (!chat) return res.status(404).json({ success: false, error: 'Not found' });
+
+  db.data.chats = db.data.chats.filter(c => c.id !== chat.id);
+  db.data.messages = db.data.messages.filter(m => m.chatId !== chat.id);
+  db.save();
+
+  broadcastEvent('chat_deleted', { chatId: chat.id });
+  res.json({ success: true });
+});
+
+export default router;
