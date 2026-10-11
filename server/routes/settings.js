@@ -247,6 +247,31 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 -- Index for speedy retrieval
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON whatsapp_messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON knowledge_chunks(document_id);
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS)
+-- Click "Run and enable RLS" when Supabase prompts you.
+-- Your Node.js backend uses the SERVICE ROLE KEY which automatically
+-- bypasses RLS. Browser anon clients are blocked by default.
+-- ============================================================
+
+ALTER TABLE whatsapp_chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_chunks ENABLE ROW LEVEL SECURITY;
+
+-- Service role: full unrestricted access (Node.js backend)
+CREATE POLICY "service_role_all_chats"
+  ON whatsapp_chats FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "service_role_all_messages"
+  ON whatsapp_messages FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "service_role_all_documents"
+  ON knowledge_documents FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "service_role_all_chunks"
+  ON knowledge_chunks FOR ALL TO service_role USING (true) WITH CHECK (true);
 `;
 
   res.type('text/plain').send(sql);

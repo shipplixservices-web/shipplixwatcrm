@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment secrets — NEVER commit real keys
+.env
+
+# Runtime data (uploaded files, local DB snapshot)
+uploads/
+data/

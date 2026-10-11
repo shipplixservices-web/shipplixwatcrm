@@ -1,10 +1,37 @@
 import express from 'express';
+import crypto from 'crypto';
 import { db } from '../db.js';
 import { verifyWebhookRequest, sendMetaWhatsAppMessage, fetchMetaMediaBinary } from '../whatsapp.js';
 import { generateGeminiResponse } from '../gemini.js';
 import { broadcastEvent } from '../events.js';
 
 const router = express.Router();
+
+/**
+ * Verify the X-Hub-Signature-256 HMAC header that Meta attaches to every webhook POST.
+ * Returns true if valid or if META_APP_SECRET is not configured (dev mode).
+ */
+function verifyMetaSignature(rawBody, signatureHeader) {
+  const appSecret = process.env.META_APP_SECRET || db.getSettings().metaAppSecret;
+  if (!appSecret) {
+    // No secret configured — skip verification (dev/demo mode)
+    return true;
+  }
+  if (!signatureHeader) {
+    console.warn('[Webhook] Missing X-Hub-Signature-256 header — rejecting request.');
+    return false;
+  }
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', appSecret)
+    .update(rawBody)
+    .digest('hex');
+  // Constant-time comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signatureHeader));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/webhook
@@ -23,6 +50,19 @@ router.get('/', (req, res) => {
  * Incoming messages and status events from Meta WhatsApp Cloud API
  */
 router.post('/', async (req, res) => {
+  // Verify Meta payload signature (X-Hub-Signature-256)
+  const rawBody = JSON.stringify(req.body);
+  const signature = req.headers['x-hub-signature-256'];
+  if (!verifyMetaSignature(rawBody, signature)) {
+    db.addWebhookLog({
+      direction: 'inbound',
+      event: 'signature_verification_failed',
+      type: 'security',
+      details: 'Invalid X-Hub-Signature-256 — request rejected.'
+    });
+    return res.status(401).json({ error: 'Invalid webhook signature' });
+  }
+
   const body = req.body;
 
   // Immediate 200 OK response required by Meta
